@@ -41,4 +41,4 @@ The paper never tests T5 or FLAN-T5, and its savings in memory and speed are mea
 
 ![Footnote 6 from the paper](images/lora_footnote6.png)
 
-I will start with r equal to 8 on the query and value matrices, then try a larger r and compare with full fine tuning. My rough estimate for FLAN-T5-base is about 0.9M trainable parameters, and I will check it in code. Another paper says LoRA can learn less than full fine tuning on hard tasks. I have not read it yet and want to before the discussion.
+I will start with r equal to 8 on the query and value matrices, then try a larger r and compare with full fine tuning. My rough estimate for FLAN-T5-base is about 0.9M trainable parameters, and I will check it in code. Another paper says LoRA can learn less than full fine tuning on hard tasks, and I read it in the next note.
