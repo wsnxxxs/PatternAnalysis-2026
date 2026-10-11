@@ -33,6 +33,6 @@ Source of all images: Yang et al., 2024, pages 4, 6, 7 and 8 of the arXiv versio
 
 ## Thoughts
 
-The error types are the most useful part for me. I will use correctness, completeness and hallucination, and add one more type for a doubt that becomes a sure statement. The hallucinations came from the model explaining too much. Students liked answers that said how serious the finding is, but the report often does not say this, so such a statement could also be a hallucination. The numbers can also mislead. CoT_SC has the highest FKGL of the simplified versions but was rated the simplest, and it got the best severity guess accuracy at 52.3 percent.
+The error types are the most useful part for me. I will use correctness, completeness and hallucination, and add one more type for a doubt that becomes a sure statement. The hallucinations came from the model explaining too much. Students liked answers that said how serious the finding is, but the report often does not say this, so such a statement could also be a hallucination. The numbers can also mislead. CoT_SC has a higher FKGL than Plain_SC and CoT_BS, but was rated the simplest, and it got the best severity guess accuracy at 52.3 percent.
 
 The study is small, with 40 sentences and one radiologist. It also uses ChatGPT prompts and not a trained model, so I cannot compare its numbers with mine. I do not have a radiologist, so I will label the errors myself and say this is a limit of my report.
