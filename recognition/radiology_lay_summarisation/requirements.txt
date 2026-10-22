@@ -1,0 +1,6 @@
+# Versions tested locally with Python 3.12.
+# They will be updated to the exact Colab versions after the training run.
+torch==2.14.1
+transformers==5.20.2
+datasets==5.1.0
+textstat==0.7.13
