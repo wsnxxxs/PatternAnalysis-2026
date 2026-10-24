@@ -19,14 +19,16 @@ Quick local test with the small model and a few hundred examples:
 """
 
 import argparse
+import json
 import os
+import time
 
 import matplotlib.pyplot as plt
 import torch
 from transformers import AutoTokenizer
 
 from dataset import IGNORE_INDEX, build_dataloader, prepare_splits
-from modules import ALL_LINEAR_TARGETS, MODEL_NAME, QUERY_VALUE_TARGETS, build_model
+from modules import ALL_LINEAR_TARGETS, MODEL_NAME, QUERY_VALUE_TARGETS, build_model, count_parameters
 
 
 def parse_arguments():
@@ -80,11 +82,12 @@ def evaluate_loss(model, loader, device, use_bfloat16):
 
 def train_one_epoch(model, loader, validation_loader, optimizer, trainable_parameters, device, use_bfloat16,
                     epoch, log_every, validate_every, history):
-    """Train for one epoch and record the training and validation losses."""
+    """Train for one epoch, record the losses, and return the seconds spent on validation."""
     model.train()
     steps_per_epoch = len(loader)
     running_loss = 0.0
     steps_since_log = 0
+    validation_seconds = 0.0
 
     for batch_number, batch in enumerate(loader, start=1):
         input_ids = batch["input_ids"].to(device)
@@ -114,13 +117,17 @@ def train_one_epoch(model, loader, validation_loader, optimizer, trainable_param
 
         # Check the validation loss every `validate_every` steps; the last step is checked in main.
         if batch_number % validate_every == 0 and batch_number < steps_per_epoch:
+            start_time = time.time()
             validation_loss = evaluate_loss(model, validation_loader, device, use_bfloat16)
+            validation_seconds += time.time() - start_time
             # evaluate_loss switched the model to eval mode, so switch back to training mode.
             model.train()
             step = epoch * steps_per_epoch + batch_number
             history["validation_steps"].append(step)
             history["validation_losses"].append(validation_loss)
             print(f"Epoch {epoch + 1}, step {batch_number}/{steps_per_epoch}, validation loss {validation_loss:.4f}")
+
+    return validation_seconds
 
 
 def save_weights(model, mode, output_dir):
@@ -186,6 +193,14 @@ def main():
     trainable_parameters = get_trainable_parameters(model)
     optimizer = torch.optim.AdamW(trainable_parameters, lr=arguments.learning_rate)
 
+    total_count, trainable_count = count_parameters(model)
+    print(f"Parameters: {total_count:,} total, {trainable_count:,} trainable "
+          f"({100 * trainable_count / total_count:.2f}%)")
+
+    # Start measuring peak GPU memory from here (weights are already on the GPU).
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats()
+
     # Validation loss before training gives the starting point of the curve.
     history = {"train_steps": [], "train_losses": [], "validation_steps": [], "validation_losses": []}
     validation_loss = evaluate_loss(model, validation_loader, device, use_bfloat16)
@@ -193,17 +208,69 @@ def main():
     history["validation_losses"].append(validation_loss)
     print(f"Validation loss before training: {validation_loss:.4f}")
 
+    epoch_seconds = []
     for epoch in range(arguments.epochs):
-        train_one_epoch(model, train_loader, validation_loader, optimizer, trainable_parameters, device,
-                        use_bfloat16, epoch, arguments.log_every, arguments.validate_every, history)
+        start_time = time.time()
+        validation_seconds = train_one_epoch(model, train_loader, validation_loader, optimizer, trainable_parameters,
+                                             device, use_bfloat16, epoch, arguments.log_every,
+                                             arguments.validate_every, history)
+        # Keep only the training time, without the validation checks inside the epoch.
+        epoch_seconds.append(time.time() - start_time - validation_seconds)
+
         validation_loss = evaluate_loss(model, validation_loader, device, use_bfloat16)
         history["validation_steps"].append((epoch + 1) * len(train_loader))
         history["validation_losses"].append(validation_loss)
-        print(f"Epoch {epoch + 1} finished, validation loss {validation_loss:.4f}")
+        print(f"Epoch {epoch + 1} finished in {epoch_seconds[-1] / 60:.1f} minutes, "
+              f"validation loss {validation_loss:.4f}")
+
+    # Peak GPU memory in gigabytes; the reserved number also includes memory cached by PyTorch.
+    device_name = "cpu"
+    peak_allocated_gigabytes = None
+    peak_reserved_gigabytes = None
+    if device.type == "cuda":
+        device_name = torch.cuda.get_device_name(0)
+        peak_allocated_gigabytes = torch.cuda.max_memory_allocated() / 1024 ** 3
+        peak_reserved_gigabytes = torch.cuda.max_memory_reserved() / 1024 ** 3
+        print(f"Peak GPU memory: {peak_allocated_gigabytes:.2f} GB allocated, "
+              f"{peak_reserved_gigabytes:.2f} GB reserved")
+
+    # LoRA settings only matter for LoRA runs.
+    lora_rank = None
+    lora_alpha = None
+    lora_targets = None
+    if arguments.mode == "lora":
+        lora_rank = arguments.lora_rank
+        lora_alpha = arguments.lora_alpha
+        lora_targets = arguments.targets
+
+    # Save the settings, resource use and loss history so predict.py and the README can use them.
+    summary = {
+        "mode": arguments.mode,
+        "model_name": arguments.model_name,
+        "learning_rate": arguments.learning_rate,
+        "epochs": arguments.epochs,
+        "batch_size": arguments.batch_size,
+        "lora_rank": lora_rank,
+        "lora_alpha": lora_alpha,
+        "lora_targets": lora_targets,
+        "seed": arguments.seed,
+        "validate_every": arguments.validate_every,
+        "train_pairs": len(train_pairs),
+        "validation_pairs": len(validation_pairs),
+        "device": device_name,
+        "total_parameters": total_count,
+        "trainable_parameters": trainable_count,
+        "peak_vram_allocated_gb": peak_allocated_gigabytes,
+        "peak_vram_reserved_gb": peak_reserved_gigabytes,
+        "epoch_seconds": epoch_seconds,
+        "history": history,
+    }
+    with open(os.path.join(arguments.output_dir, "run_summary.json"), "w") as summary_file:
+        json.dump(summary, summary_file, indent=2)
 
     save_weights(model, arguments.mode, arguments.output_dir)
     plot_losses(history, arguments.output_dir)
-    print(f"Saved weights and loss curve to {arguments.output_dir}")
+    print(f"Saved weights, loss curve and run_summary.json to {arguments.output_dir}")
 
 
 if __name__ == "__main__":
