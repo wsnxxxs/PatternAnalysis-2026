@@ -5,3 +5,5 @@ transformers==5.20.2
 datasets==5.1.0
 textstat==0.7.13
 matplotlib==3.11.2
+rouge-score==0.1.2
+nltk==3.10.4
