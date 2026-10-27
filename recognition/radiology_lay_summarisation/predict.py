@@ -20,7 +20,9 @@ Examples:
     python predict.py --model zero_shot --run-dir outputs/B2_zero_shot
     python predict.py --model full --run-dir outputs/R1_full
     python predict.py --model lora --run-dir outputs/R2_lora
-    python predict.py --plot outputs/B1_copy outputs/B2_zero_shot outputs/R1_full outputs/R2_lora
+    python predict.py --model lora --run-dir outputs/R3_lora_all
+    python predict.py --plot outputs/B1_copy outputs/B2_zero_shot outputs/R1_full outputs/R2_lora \
+        outputs/R3_lora_all
 """
 
 import argparse
@@ -213,12 +215,12 @@ def plot_metrics(run_dirs, output_path):
     rouge_axis.set_title("ROUGE on the clean validation set (higher is better)")
     rouge_axis.legend(loc="upper right")
 
-    # Right: average FKGL per run, with the grade 6 target as a dashed line.
+    # Right: average FKGL per run, with the feasibility target as a dashed line.
     fkgl_values = []
     for metrics in all_metrics:
         fkgl_values.append(metrics["fkgl"])
     fkgl_axis.bar(run_names, fkgl_values, color="gray")
-    fkgl_axis.axhline(6, color="red", linestyle="--", label="Grade 6 target")
+    fkgl_axis.axhline(7.5, color="red", linestyle="--", label="Feasibility target (7.5)")
     fkgl_axis.set_ylabel("Flesch-Kincaid Grade Level")
     fkgl_axis.set_title("Readability (lower is easier)")
     fkgl_axis.tick_params(axis="x", labelrotation=20)
