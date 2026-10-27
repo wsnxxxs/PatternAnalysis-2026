@@ -2,7 +2,7 @@
 Data loading and preprocessing for radiology report lay summarisation.
 
 Dataset: BioLaySumm 2025 LaymanRRG open-source track (Hugging Face).
-Each example pairs a chest X-ray report with a lay summary written for patients.
+Each example pairs a radiology report with a lay summary written for patients.
 
 Main steps:
 1. Load the official train, validation and test splits.
