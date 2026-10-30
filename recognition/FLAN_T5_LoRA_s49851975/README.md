@@ -340,7 +340,7 @@ python train.py --mode full --learning-rate 1e-4 --model-name google/flan-t5-sma
 
 The dataset, model weights and `outputs/` are excluded from Git by [`.gitignore`](.gitignore) and can be regenerated with the commands above. The figures in this README are saved in [`images/`](images/) and [`notes/images/`](notes/images/).
 
-## 11. Artificial Intelligence Usage
+## 11. Artificial Intelligence Usage Disclosure
 
 I used ChatGPT and Claude across several stages of this project to help with my learning and development. When reading the literature, I used them to summarise key points from the papers and to help me understand the details of the T5 architecture and LoRA. When writing the code, I worked with AI to learn how to implement the LoRA layer from scratch in PyTorch, how to handle data processing and tokenization with Hugging Face, and how to write the training, evaluation and plotting scripts, as well as to debug errors along the way.
 
